@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "healura-features"
+version = "0.1.0"
+description = "Frozen shared feature layer for Healura: identical feature extraction for training and serving, gated by a golden parity fixture."
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+# Pinned EXACTLY to the versions the v1/v2 population model was trained against.
+# neurokit2 produces the EDA/HRV decompositions and pandas objects the feature
+# code consumes; scipy provides linregress; numpy is the array/vector substrate.
+# A change to any of these can move a feature value, so they are hard-pinned, not
+# floored. NO sklearn/xgboost: this package extracts features, it does not train
+# or score. pandas is required because neurokit2 returns pandas Series/DataFrames
+# (e.g. EDA_Tonic.std(ddof=0)) and features.py builds pd.Series directly.
+dependencies = [
+    "neurokit2==0.2.13",
+    "scipy==1.17.1",
+    "numpy==2.4.3",
+    "pandas==2.3.3",
+    # The frozen spec is YAML; contract.load_spec and hash_spec both parse it.
+    # Pinned to the version healura_ml froze so parsing is byte-for-byte stable.
+    "pyyaml==6.0.3",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# Package data — these MUST ship inside the wheel so an installed consumer can
+# load the frozen spec and run the golden parity acceptance gate without the
+# source tree present. Loaded via importlib.resources, never a relative path.
+[tool.setuptools.package-data]
+healura_features = [
+    "feature_spec_v1.yaml",
+    "fixtures/golden_window.npz",
+    "fixtures/golden_vector.json",
+    "fixtures/golden_resample.npz",
+    "fixtures/golden_resample.json",
+]

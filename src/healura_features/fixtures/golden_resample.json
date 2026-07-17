@@ -1,0 +1,20 @@
+{
+  "eda_hz": 15,
+  "acc_hz": 25,
+  "eda_raw_shape": [
+    900
+  ],
+  "acc_raw_shape": [
+    1500,
+    3
+  ],
+  "eda_canon_shape": [
+    240
+  ],
+  "acc_canon_shape": [
+    240,
+    3
+  ],
+  "eda_unit": "microsiemens",
+  "acc_unit": "g"
+}

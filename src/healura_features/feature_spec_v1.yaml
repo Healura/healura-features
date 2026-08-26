@@ -21,9 +21,28 @@
 # be mixed. See CLAUDE.md: the bump rule covers value-changing edits, not only
 # schema edits.
 #
+# v3 (SCR detector retune): the feature SET is again unchanged — same 14 names,
+# same order, same dtypes, same window semantics — so spec_hash does NOT move.
+# What changed is the VALUE of one feature for identical raw input:
+#   (a) scr_peak_rate is now detected with an ABSOLUTE amplitude floor
+#       (prominence >= 0.02 microsiemens) and a 3.0 s minimum inter-peak
+#       interval, applied to the EDA_Phasic column with scipy.signal.find_peaks.
+#       v2 read nk.eda_process's own SCR_Peaks column, whose amplitude_min
+#       default is RELATIVE (10 percent of window maximum) and unreachable
+#       through eda_process. See the scr_peak_rate entry below.
+# No other feature changed. eda_slope, the other feature the current population
+# candidate consumes, is untouched.
+#
+# READ THIS BEFORE COMPARING MODELS: spec_hash is byte-identical across the v2
+# -> v3 bump, because the hash covers frozen_order, (name, dtype) pairs and the
+# window semantics only — it does NOT cover the extraction: strings. A consumer
+# that verifies spec_hash alone CANNOT detect this change. Every scr_peak_rate
+# value written under v2 is a different quantity from one written under v3, and
+# feature_pipeline_version is the ONLY field that says so. Pin on fpv, not hash.
+#
 # NOTE: this file is still named feature_spec_v1.yaml. The filename is a
 # historical artifact; feature_pipeline_version below is authoritative.
-feature_pipeline_version: v2
+feature_pipeline_version: v3
 status: "PROPOSED-FROZEN (ML-side) — pending backend + firmware countersign"
 
 countersign_required:
@@ -108,7 +127,19 @@ features:
   - name: scr_peak_rate
     dtype: float64
     source_signal: eda
-    extraction: "SCR_Peaks count / window_minutes from nk.eda_process"
+    # v3: DETECTOR CHANGED. The two numeric values below are LOAD BEARING —
+    # they are named explicitly in the find_peaks call in features.py
+    # (SCR_MIN_PROMINENCE_MICROSIEMENS, SCR_MIN_INTERPEAK_INTERVAL_SECONDS),
+    # not inherited from a library default. Changing either changes the value
+    # of this feature for identical raw input.
+    extraction: "scipy.signal.find_peaks over the nk.eda_process EDA_Phasic column,
+      with an ABSOLUTE amplitude floor of prominence >= 0.02 microsiemens and a
+      minimum inter-peak interval of 3.0 seconds (distance = 12 samples at eda_hz 4);
+      count / window_minutes. v3 CHANGE: v2 read the nk.eda_process SCR_Peaks column
+      instead, whose amplitude_min default of 0.1 is RELATIVE (10 percent of the
+      window maximum) and is not reachable through eda_process at all. That relative
+      floor collapsed on flat windows and counted baseline wander as SCRs. The floor
+      is now absolute and in microsiemens and must never be made relative again."
 
   # ── ACC features (6) — Accelerometer in g at 4 Hz (magnitude + per-axis) ──
   # Rate-independent statistics, but calibrated to the g scale AND to the

@@ -23,7 +23,7 @@ from .contract import load_spec, vectorize
 from .features import extract_all_features
 from .hash_spec import compute_hash
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "extract_all_features",

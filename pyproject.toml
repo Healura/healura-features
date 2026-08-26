@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "healura-features"
-version = "0.1.0"
+version = "0.2.0"
 description = "Frozen shared feature layer for Healura: identical feature extraction for training and serving, gated by a golden parity fixture."
 readme = "README.md"
 requires-python = ">=3.11,<3.12"

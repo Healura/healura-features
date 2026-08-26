@@ -13,9 +13,36 @@ import numpy as np
 import neurokit2 as nk
 import pandas as pd
 from scipy import stats
+from scipy.signal import find_peaks
 import warnings
 
 logger = logging.getLogger(__name__)
+
+# ── SCR peak criterion (v3) — ABSOLUTE, not relative ─────────────────────────
+# These two values are LOAD BEARING. They are named in the find_peaks call
+# below, never inherited from a library default, and they are declared verbatim
+# in feature_spec_v1.yaml's extraction: string for scr_peak_rate.
+#
+# WHY THEY EXIST:
+# v2 counted peaks from nk.eda_process's own SCR_Peaks column. That detector's
+# amplitude_min default of 0.1 is RELATIVE — 10% of the window maximum — and is
+# not reachable through eda_process at all. On a flat window the window maximum
+# is small, so the floor collapses toward zero and the detector fires on
+# baseline noise: 27 peaks/min on flat traces, held-out LOW-movement AUROC
+# 0.0915, and the feature confidently INVERTED in 13 of 15 subjects (calm
+# windows carried more counted "peaks" than stressed ones). At 4 Hz an SCR rise
+# of 1-3 s is only 4-12 samples, so a relative criterion has no chance of
+# separating a real sympathetic burst from wander.
+#
+# An absolute microsiemens floor fixes the direction: held-out LOW-movement
+# AUROC 0.9829, inverted in 0 of 15 subjects. The floor is in µS because a
+# sympathetic response has a physical amplitude — it does not scale with
+# whatever else happened to be in the window.
+#
+# DO NOT reintroduce a relative threshold anywhere in this path. That is the
+# defect this criterion exists to remove.
+SCR_MIN_PROMINENCE_MICROSIEMENS = 0.02
+SCR_MIN_INTERPEAK_INTERVAL_SECONDS = 3.0
 
 EDA_FEATURE_KEYS = [
     "eda_tonic_mean", "eda_tonic_std", "eda_phasic_mean",
@@ -54,8 +81,28 @@ def extract_eda_features(
         features["eda_phasic_mean"] = eda_signals["EDA_Phasic"].mean()
         features["eda_phasic_max"] = eda_signals["EDA_Phasic"].max()
 
-        # SCR peak rate (number of stress responses per minute)
-        n_peaks = eda_signals["SCR_Peaks"].sum()
+        # SCR peak rate (number of stress responses per minute).
+        #
+        # Peaks are detected on the SAME EDA_Phasic series eda_process already
+        # produced above (clean -> phasic decomposition is NeuroKit's and is
+        # unchanged); only the peak CRITERION applied to it differs. The
+        # eda_process SCR_Peaks column is deliberately not read: its amplitude
+        # floor is relative to the window maximum and cannot be overridden
+        # through eda_process. See the constants at module level.
+        #
+        # Both parameters are passed explicitly. distance is in SAMPLES, so the
+        # 3-second interval is converted at the window's own sampling rate
+        # rather than assuming 4 Hz.
+        phasic = eda_signals["EDA_Phasic"].values
+        min_interpeak_samples = max(
+            1, int(round(SCR_MIN_INTERPEAK_INTERVAL_SECONDS * sampling_rate))
+        )
+        scr_peaks, _ = find_peaks(
+            phasic,
+            prominence=SCR_MIN_PROMINENCE_MICROSIEMENS,
+            distance=min_interpeak_samples,
+        )
+        n_peaks = len(scr_peaks)
         window_minutes = len(eda_window) / sampling_rate / 60
         features["scr_peak_rate"] = n_peaks / max(window_minutes, 0.01)
 

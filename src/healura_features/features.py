@@ -28,16 +28,33 @@ logger = logging.getLogger(__name__)
 # amplitude_min default of 0.1 is RELATIVE — 10% of the window maximum — and is
 # not reachable through eda_process at all. On a flat window the window maximum
 # is small, so the floor collapses toward zero and the detector fires on
-# baseline noise: 27 peaks/min on flat traces, held-out LOW-movement AUROC
-# 0.0915, and the feature confidently INVERTED in 13 of 15 subjects (calm
-# windows carried more counted "peaks" than stressed ones). At 4 Hz an SCR rise
-# of 1-3 s is only 4-12 samples, so a relative criterion has no chance of
-# separating a real sympathetic burst from wander.
+# baseline noise: 27 peaks/min on flat traces, and the feature confidently
+# INVERTED in 13 of 15 subjects (calm windows carried more counted "peaks" than
+# stressed ones). At 4 Hz an SCR rise of 1-3 s is only 4-12 samples, so a
+# relative criterion has no chance of separating a real sympathetic burst from
+# wander.
 #
-# An absolute microsiemens floor fixes the direction: held-out LOW-movement
-# AUROC 0.9829, inverted in 0 of 15 subjects. The floor is in µS because a
-# sympathetic response has a physical amplitude — it does not scale with
-# whatever else happened to be in the window.
+# THE RESULT THIS CRITERION IS JUSTIFIED BY IS DIRECTION, NOT PERFORMANCE:
+# an absolute microsiemens floor leaves the feature inverted in 0 of 15
+# subjects, against 13 of 15 under the relative floor. The floor is in µS
+# because a sympathetic response has a physical amplitude, so it does not scale
+# with whatever else happened to be in the window.
+#
+# The held-out LOW-movement AUROC figures that accompany that result, 0.0915
+# under v2 and 0.9829 under v3, are recorded here ONLY as the direction
+# diagnostic they were computed as: the informative thing about them is that one
+# sits below chance and the other above it, on the same windows. NEITHER IS A
+# HEADLINE METRIC FOR THIS PACKAGE OR FOR ANY MODEL BUILT ON IT. healura_ml's
+# docs/ML_CONVENTIONS.md is binding on both repositories and states it plainly:
+# primary metrics are PR-AUC and recall-at-fixed-precision, never accuracy or
+# AUROC as the headline number. Quote the PR-AUC and recall-at-fixed-precision
+# figures from healura_ml's v3 candidate evaluation instead, and do not lift
+# either AUROC out of this comment into a model card, a report or a docstring.
+#
+# The criterion's own derivation, including the within-amplitude-stratum
+# evidence that v3 is not the same amplitude proxy with its sign corrected, is
+# healura_ml's docs/SCR_V3_CRITERION.md. This package states the constants; it
+# does not restate the argument for them.
 #
 # DO NOT reintroduce a relative threshold anywhere in this path. That is the
 # defect this criterion exists to remove.
